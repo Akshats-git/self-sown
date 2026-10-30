@@ -150,7 +150,9 @@ describe("applyStockToProduct", () => {
   });
 
   it("works for products with no listing quantity", () => {
-    const untracked = { createdAt: LISTED_AT };
+    const untracked: { createdAt: number; quantity?: number } = {
+      createdAt: LISTED_AT,
+    };
     const result = applyStockToProduct(
       untracked,
       snapshot({ default_quantity: 0, default_updated_at: LISTED_AT + 1 })

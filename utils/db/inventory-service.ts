@@ -117,9 +117,12 @@ export async function getStockForProducts(
   let client;
   try {
     client = await pool.connect();
+    // updated_at is a plain TIMESTAMP holding session-local wall time, so read
+    // it back in that same zone. A bare EXTRACT(EPOCH ...) is off by the zone
+    // offset whenever the database is not on UTC.
     const result = await client.query(
       `SELECT product_id, variant_key, quantity,
-              EXTRACT(EPOCH FROM updated_at)::bigint AS updated_at
+              EXTRACT(EPOCH FROM (updated_at AT TIME ZONE current_setting('TimeZone')))::bigint AS updated_at
          FROM inventory WHERE product_id = ANY($1::text[])`,
       [ids]
     );

@@ -52,6 +52,40 @@ describe("newerStockOnly", () => {
     expect(result).toBeNull();
   });
 
+  it("reads a listing time that arrives as a string, as Postgres returns bigint", () => {
+    const old = snapshot({
+      default_quantity: 0,
+      default_updated_at: LISTED_AT - 1,
+    });
+    const fresh = snapshot({
+      default_quantity: 0,
+      default_updated_at: LISTED_AT + 1,
+    });
+    const listedAt = String(LISTED_AT) as unknown as number;
+    expect(newerStockOnly(old, listedAt)).toBeNull();
+    expect(newerStockOnly(fresh, listedAt)?.default_quantity).toBe(0);
+  });
+
+  it("reads a row time that arrives as a string", () => {
+    const stale = snapshot({
+      default_quantity: 0,
+      default_updated_at: String(LISTED_AT - 1) as unknown as number,
+    });
+    expect(newerStockOnly(stale, LISTED_AT)).toBeNull();
+  });
+
+  it("treats a blank or non-numeric listing time as unknown", () => {
+    const old = snapshot({
+      default_quantity: 1,
+      default_updated_at: LISTED_AT - 1,
+    });
+    for (const bad of ["", "abc", 0, null, Number.NaN]) {
+      expect(
+        newerStockOnly(old, bad as unknown as number)?.default_quantity
+      ).toBe(1);
+    }
+  });
+
   it("trusts rows that have no timestamp", () => {
     const result = newerStockOnly(
       snapshot({ default_quantity: 0, variants: { "size:S": 2 } }),

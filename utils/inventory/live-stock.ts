@@ -25,19 +25,28 @@ export const SIZE_VARIANT_PREFIX = "size:";
 export const LOW_STOCK_THRESHOLD = 5;
 
 /**
+ * Unix seconds from a number or a numeric string. Postgres returns bigint
+ * columns such as a cached event's `created_at` as strings, so a strict number
+ * check would wrongly treat a real listing time as unknown.
+ */
+function toUnixSeconds(value: unknown): number | undefined {
+  const seconds =
+    typeof value === "string" && value.trim() !== "" ? Number(value) : value;
+  return typeof seconds === "number" && Number.isFinite(seconds) && seconds > 0
+    ? seconds
+    : undefined;
+}
+
+/**
  * A row is newer when it was written strictly after the listing. A missing
  * timestamp (or listing time) cannot be compared, so the row is trusted; this
  * keeps snapshots built without timestamps behaving as they always did.
  */
-function isNewer(
-  rowUpdatedAt: number | null | undefined,
-  listingCreatedAt: number | undefined
-): boolean {
-  if (typeof rowUpdatedAt !== "number" || !Number.isFinite(rowUpdatedAt)) {
-    return true;
-  }
-  if (!listingCreatedAt || !Number.isFinite(listingCreatedAt)) return true;
-  return rowUpdatedAt > listingCreatedAt;
+function isNewer(rowUpdatedAt: unknown, listingCreatedAt: unknown): boolean {
+  const rowSeconds = toUnixSeconds(rowUpdatedAt);
+  const listingSeconds = toUnixSeconds(listingCreatedAt);
+  if (rowSeconds === undefined || listingSeconds === undefined) return true;
+  return rowSeconds > listingSeconds;
 }
 
 /**
